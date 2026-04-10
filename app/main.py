@@ -1,37 +1,74 @@
-from fastapi import FastAPI
-from pydantic import BaseModel, Field
+from fastapi import FastAPI, Body, HTTPException
+from pydantic import BaseModel
 import joblib
 import pandas as pd
+from datetime import datetime
+
+from app.llm_parser import parse_property_details
 
 app = FastAPI(
     title="Brooklyn Home Price Prediction API",
-    description="Predict Brooklyn home prices from raw property inputs.",
-    version="1.0.0"
+    version="1.1.0"
 )
 
 pipeline = joblib.load("models/brooklyn_price_pipeline_raw_inputs.joblib")
 
 
 class PredictionRequest(BaseModel):
-    neighborhood: str = Field(..., description="Neighborhood name used by the model")
-    building_class_category: str = Field(..., description="Grouped building class category")
-    gross_sqft: float = Field(..., description="Gross square footage of the property")
-    dist_to_station: float = Field(..., description="Distance to nearest subway station in miles")
-    build_age_yrs: float = Field(..., description="Building age in years")
-    within_half_mi: int = Field(..., description="1 if property is within 0.5 miles of a subway station, otherwise 0")
+    neighborhood: str
+    building_class_category: str
+    gross_sqft: float
+    dist_to_station: float
+    build_age_yrs: float
+    within_half_mi: int
 
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "neighborhood": "bay_ridge",
-                "building_class_category": "one_family_dwellings",
-                "gross_sqft": 2500,
-                "dist_to_station": 0.3,
-                "build_age_yrs": 75,
-                "within_half_mi": 1
-            }
-        }
-    }
+
+def run_prediction(input_data: dict) -> float:
+    neighborhood = input_data.get("neighborhood")
+    building_class_category = input_data.get("building_class_category")
+    gross_sqft = input_data.get("gross_sqft")
+    dist_to_station = input_data.get("dist_to_station")
+    build_age_yrs = input_data.get("build_age_yrs")
+    within_half_mi = input_data.get("within_half_mi")
+
+    if not neighborhood:
+        raise HTTPException(status_code=400, detail="Missing neighborhood.")
+    if not building_class_category:
+        raise HTTPException(status_code=400, detail="Missing building_class_category.")
+    if gross_sqft is None:
+        raise HTTPException(status_code=400, detail="Missing gross_sqft.")
+    if dist_to_station is None:
+        raise HTTPException(status_code=400, detail="Missing dist_to_station.")
+    if build_age_yrs is None:
+        raise HTTPException(status_code=400, detail="Missing build_age_yrs.")
+    if within_half_mi is None:
+        raise HTTPException(status_code=400, detail="Missing within_half_mi.")
+
+    gross_sqft = float(gross_sqft)
+    dist_to_station = float(dist_to_station)
+    build_age_yrs = float(build_age_yrs)
+    within_half_mi = int(within_half_mi)
+
+    if gross_sqft <= 0:
+        raise HTTPException(status_code=400, detail="gross_sqft must be greater than 0.")
+    if dist_to_station <= 0:
+        raise HTTPException(status_code=400, detail="dist_to_station must be greater than 0.")
+    if within_half_mi not in [0, 1]:
+        raise HTTPException(status_code=400, detail="within_half_mi must be 0 or 1.")
+
+    df = pd.DataFrame([{
+        "neighborhood": neighborhood,
+        "building_class_category": building_class_category,
+        "gross_sqft": gross_sqft,
+        "dist_to_station": dist_to_station,
+        "build_age_yrs": build_age_yrs,
+        "within_half_mi": within_half_mi
+    }])
+
+    predicted_log_price = float(pipeline.predict(df)[0])
+    predicted_price = float(10 ** predicted_log_price)
+
+    return round(predicted_price, 2)
 
 
 @app.get("/health")
@@ -41,10 +78,35 @@ def health():
 
 @app.post("/predict")
 def predict(payload: PredictionRequest):
-    df = pd.DataFrame([payload.model_dump()])
-    predicted_log_price = float(pipeline.predict(df)[0])
-    predicted_price = float(10 ** predicted_log_price)
+    predicted_price = run_prediction(payload.model_dump())
+    return {"predicted_price_usd": predicted_price}
+
+
+@app.post("/predict-from-text")
+def predict_from_text(user_prompt: str = Body(..., embed=True)):
+    raw_data = parse_property_details(user_prompt)
+
+    if not raw_data:
+        raise HTTPException(status_code=400, detail="Could not parse property details.")
+
+    year_built = raw_data.get("year_built")
+    if year_built is None:
+        raise HTTPException(status_code=400, detail="Missing year_built.")
+
+    current_year = datetime.now().year
+
+    input_data = {
+        "neighborhood": raw_data.get("neighborhood"),
+        "building_class_category": raw_data.get("building_class_category"),
+        "gross_sqft": raw_data.get("gross_sqft"),
+        "dist_to_station": raw_data.get("distance_to_station"),
+        "build_age_yrs": current_year - int(year_built),
+        "within_half_mi": raw_data.get("within_half_mi")
+    }
+
+    predicted_price = run_prediction(input_data)
 
     return {
-        "predicted_price_usd": round(predicted_price, 2)
+        "extracted_features": input_data,
+        "predicted_price_usd": predicted_price
     }
