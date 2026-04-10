@@ -1,4 +1,4 @@
-🏠 # Brooklyn Home Price Prediction API
+ # 🏠 Brooklyn Home Price Prediction API
 
 Productionized machine learning project for predicting Brooklyn residential home sale prices using Python, scikit-learn, FastAPI, Docker, OpenAI, and AWS.
 
