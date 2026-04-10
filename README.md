@@ -1,9 +1,9 @@
-# Brooklyn Home Price Prediction API
+🏠 # Brooklyn Home Price Prediction API
 
-Productionized machine learning project for predicting **Brooklyn residential home sale prices** using **Python, scikit-learn, FastAPI, Docker, OpenAI, and AWS**.
+Productionized machine learning project for predicting Brooklyn residential home sale prices using Python, scikit-learn, FastAPI, Docker, OpenAI, and AWS.
 
-**Live API:** https://zv8byfbrkn.us-east-1.awsapprunner.com/docs  
-**GitHub:** https://github.com/jac6779/brooklyn-home-price-api
+🔗 **Live API:** https://zv8byfbrkn.us-east-1.awsapprunner.com/docs  
+🔗 **GitHub:** https://github.com/jac6779/brooklyn-home-sales-llm
 
 ---
 
@@ -36,7 +36,7 @@ Accurate home price estimation is useful for:
 
 The project was designed to answer a practical question:
 
-> Given a Brooklyn residential property’s size, age, neighborhood, building class, and subway accessibility, what sale price would the model predict?
+> Given a Brooklyn residential property's size, age, neighborhood, building class, and subway accessibility, what sale price would the model predict?
 
 It was later extended to answer a second practical question:
 
