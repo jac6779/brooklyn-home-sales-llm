@@ -2,7 +2,8 @@
 
 Productionized machine learning project for predicting Brooklyn residential home sale prices using Python, scikit-learn, FastAPI, Docker, OpenAI, and AWS.
 
-🔗 **Live API:** https://zv8bfybrkn.us-east-1.awsapprunner.com/docs#/ 
+🔗 **Live API:** 
+https://zv8bfybrkn.us-east-1.awsapprunner.com/docs#/  
   
 🔗 **GitHub:** https://github.com/jac6779/brooklyn-home-sales-llm
 
@@ -265,7 +266,7 @@ Deployment stack:
 - **AWS Secrets Manager** for secure API key management
 
 Live resources:
-- **API docs:** https://zv8byfbrkn.us-east-1.awsapprunner.com/docs
+- **API docs:** https://zv8bfybrkn.us-east-1.awsapprunner.com/docs#/
 - **Prediction endpoint:** `POST /predict`
 - **Natural-language endpoint:** `POST /predict-from-text`
 
