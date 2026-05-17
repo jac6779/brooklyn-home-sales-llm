@@ -15,7 +15,7 @@ This project predicts Brooklyn residential sale prices from property characteris
 
 The workflow starts with raw NYC home sales data, enriches each property with PLUTO geospatial data and nearest subway distance, applies structured preprocessing and feature engineering, compares multiple regression models, and serves the final model through a FastAPI inference API deployed on AWS App Runner.
 
-The project also includes an LLM-powered inference layer that allows a user to describe a property in natural language. The API uses the OpenAI API to extract structured property features from free text, validates those fields, and then passes them into the trained regression pipeline for prediction.
+The project also includes an AI-powered inference layer that combines OCR, retrieval-augmented prompting, and LLM-based structured extraction. Users can submit natural-language property descriptions or uploaded documents, and the system extracts relevant information, retrieves project-specific contextual references, converts the input into validated structured model features, and then passes those features into the trained regression pipeline.
 
 This repo reflects a full applied ML workflow:
 - raw data preprocessing
@@ -172,6 +172,28 @@ This made it possible for a user to describe a home in plain English instead of 
 
 ---
 
+
+### 7) OCR + Retrieval-Augmented LLM Workflow
+
+The inference workflow was extended beyond plain text input to support document-based and context-aware predictions.
+
+Key steps:
+- integrated OCR to extract text from uploaded property documents and images
+- converted unstructured text into usable content for downstream processing
+- created a retrieval layer using project-specific reference data
+- supplied contextual information such as:
+  - neighborhood values
+  - building class mappings
+  - accepted categorical values
+  - synonym handling
+- grounded prompts with retrieved context before LLM processing
+- converted extracted information into structured model inputs
+- validated extracted values against model expectations
+- passed validated features into the prediction pipeline
+
+This creates a grounded LLM workflow that reduces hallucinations and improves consistency between user input and model-required features.
+
+
 ## Key Notebook Insights
 
 These insights come directly from the project notebooks.
@@ -274,6 +296,59 @@ Live resources:
 
 ## LLM & AI Implementation
 
+### OCR Processing
+
+Implemented OCR-based preprocessing to extract text from uploaded property documents and images, allowing the system to support richer real-world inputs beyond manually entered fields.
+
+### Retrieval-Augmented Context
+
+Built a retrieval layer that provides project-specific context to the LLM during inference.
+
+Retrieved context includes:
+
+- supported neighborhood names
+- building class categories
+- accepted categorical values
+- synonym mappings
+- property metadata references
+
+This grounding step helps ensure extracted values align with model expectations.
+
+### Prompt Engineering
+
+Designed prompts that combine user input with retrieved contextual information before extraction.
+
+Prompting logic was designed to:
+
+- reduce hallucinations
+- improve categorical matching
+- normalize user terminology
+- enforce consistent structured output
+
+### Structured Output Parsing
+
+Implemented structured parsing and validation to convert LLM responses into model-ready feature dictionaries.
+
+Validation includes:
+
+- required field checks
+- categorical validation
+- data-type conversion
+- fallback error handling
+
+### End-to-End AI Pipeline
+
+The workflow combines:
+
+1. OCR text extraction
+2. retrieval-augmented contextual grounding
+3. LLM-based feature extraction
+4. structured validation
+5. regression model inference
+
+This allows users to interact with the system using natural language and uploaded content rather than manually providing structured fields.
+
+
 ### OpenAI API
 Integrated the OpenAI API into the FastAPI backend to process natural-language property descriptions and convert them into structured inputs for downstream model inference.
 
@@ -314,6 +389,8 @@ brooklyn-home-price-api/
 - FastAPI
 - Uvicorn
 - OpenAI API
+- OCR processing
+- Retrieval-Augmented Generation (RAG)
 - Docker
 - AWS App Runner
 - AWS Secrets Manager
@@ -353,6 +430,9 @@ This project demonstrates:
 - structured preprocessing with reusable sklearn pipelines
 - model comparison using business-readable error metrics
 - LLM integration for natural-language inference
+- OCR-based document ingestion
+- retrieval-augmented contextual grounding
+- hybrid AI architecture combining LLMs with traditional ML models
 - transition from notebook analysis to deployable API infrastructure
 
 It is both a machine learning modeling project and an applied ML engineering project.

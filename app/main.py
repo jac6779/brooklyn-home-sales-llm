@@ -1,4 +1,8 @@
-from fastapi import FastAPI, Body, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
+import easyocr
+import io
+import numpy as np
+from PIL import Image
 from pydantic import BaseModel
 import joblib
 import pandas as pd
@@ -8,11 +12,12 @@ from app.llm_parser import parse_property_details
 
 app = FastAPI(
     title="Brooklyn Home Price Prediction API",
-    version="1.1.0"
+    version="1.2.0"
 )
 
 pipeline = joblib.load("models/brooklyn_price_pipeline_raw_inputs.joblib")
 
+reader = easyocr.Reader(["en"])
 
 class PredictionRequest(BaseModel):
     neighborhood: str
@@ -21,7 +26,30 @@ class PredictionRequest(BaseModel):
     dist_to_station: float
     build_age_yrs: float
     within_half_mi: int
+    
+    model_config = {
+    "json_schema_extra": {
+        "example": {
+            "neighborhood": "park_slope",
+            "building_class_category": "one_family_dwellings",
+            "gross_sqft": 1800,
+            "dist_to_station": 0.2,
+            "build_age_yrs": 65,
+            "within_half_mi": 1
+            }
+        }
+    }
+    
+class PromptRequest(BaseModel):
+    user_prompt: str
 
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "user_prompt": "A one-family home in Bay Ridge with about 2,500 square feet, built in 1950, around 0.3 miles from the subway."
+            }
+        }
+    }
 
 def run_prediction(input_data: dict) -> float:
     neighborhood = input_data.get("neighborhood")
@@ -83,7 +111,42 @@ def predict(payload: PredictionRequest):
 
 
 @app.post("/predict-from-text")
-def predict_from_text(user_prompt: str = Body(..., embed=True)):
+def predict_from_text(payload: PromptRequest):
+    raw_data = parse_property_details(payload.user_prompt)
+
+    if not raw_data:
+        raise HTTPException(status_code=400, detail="Could not parse property details.")
+
+    year_built = raw_data.get("year_built")
+    if year_built is None:
+        raise HTTPException(status_code=400, detail="Missing year_built.")
+
+    current_year = datetime.now().year
+
+    input_data = {
+        "neighborhood": raw_data.get("neighborhood"),
+        "building_class_category": raw_data.get("building_class_category"),
+        "gross_sqft": raw_data.get("gross_sqft"),
+        "dist_to_station": raw_data.get("distance_to_station"),
+        "build_age_yrs": current_year - int(year_built),
+        "within_half_mi": raw_data.get("within_half_mi")
+    }
+
+    predicted_price = run_prediction(input_data)
+
+    return {
+        "extracted_features": input_data,
+        "predicted_price_usd": predicted_price
+    }
+    
+@app.post("/predict-from-image")
+async def predict_from_image(file: UploadFile = File(...)):
+    data = await file.read()
+    image = Image.open(io.BytesIO(data))
+    
+    text_results = reader.readtext(np.array(image), detail=0)
+    user_prompt = " ".join(text_results)
+    
     raw_data = parse_property_details(user_prompt)
 
     if not raw_data:
@@ -107,6 +170,7 @@ def predict_from_text(user_prompt: str = Body(..., embed=True)):
     predicted_price = run_prediction(input_data)
 
     return {
+        "ocr_text": user_prompt,
         "extracted_features": input_data,
         "predicted_price_usd": predicted_price
     }
