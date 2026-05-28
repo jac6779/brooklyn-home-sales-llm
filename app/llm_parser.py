@@ -11,15 +11,16 @@ MODEL_NAME = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
 
 
 def load_schema_reference() -> str:
-    reference_path = Path(__file__).parent / "rag_context" / "brooklyn_schema_reference.txt"
+    reference_path = Path(__file__).parent / "rag_context" / "schema_reference.txt"
     return reference_path.read_text(encoding="utf-8")
 
-
 def parse_property_details(user_prompt: str):
-    system_message = """
+    schema_reference = load_schema_reference()
+    
+    system_message_1 = f"""
     Extract property features from the user prompt into JSON.
     
-    Use the schema reference below to normalize categorial values.
+    Use the schema reference below to normalize categorical values.
     
     SCHEMA REFERENCE:
     {schema_reference}
@@ -31,7 +32,11 @@ def parse_property_details(user_prompt: str):
     - year_built
     - distance_to_station
     - within_half_mi
-
+    """
+    
+    system_message_2 = """
+    Normalize the extracted property features and return valid JSON.
+    
     Rules:
     - neighborhood must be one of the allowed neighborhood values from the schema reference.
     - building_class_category must be one of the allowed building_class_category values from the schema reference.
@@ -46,14 +51,26 @@ def parse_property_details(user_prompt: str):
     - do not include extra keys.
     """
 
-    response = client.chat.completions.create(
+    response_1 = client.chat.completions.create(
         model=MODEL_NAME,
         temperature=0,
         response_format={"type": "json_object"},
         messages=[
-            {"role": "system", "content": system_message},
+            {"role": "system", "content": system_message_1},
             {"role": "user", "content": user_prompt}
         ]
     )
+    
+    raw_keys = response_1.choices[0].message.content
+    
+    response_2 = client.chat.completions.create(
+        model=MODEL_NAME,
+        temperature=0,
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": system_message_2},
+            {"role": "user", "content": f"Raw data to normalize: {raw_keys}"}
+        ]
+    )
 
-    return json.loads(response.choices[0].message.content)
+    return json.loads(response_2.choices[0].message.content)
