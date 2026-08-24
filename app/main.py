@@ -1,23 +1,16 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
-import easyocr
-import io
+from fastapi import FastAPI, HTTPException
 import numpy as np
-from PIL import Image
 from pydantic import BaseModel
 import joblib
 import pandas as pd
 from datetime import datetime
-
 from app.llm_parser import parse_property_details
 
 app = FastAPI(
     title="Brooklyn Home Price Prediction API",
-    version="1.2.0"
 )
 
 pipeline = joblib.load("models/brooklyn_price_pipeline_raw_inputs.joblib")
-
-reader = easyocr.Reader(["en"])
 
 class PredictionRequest(BaseModel):
     neighborhood: str
@@ -135,42 +128,6 @@ def predict_from_text(payload: PromptRequest):
     predicted_price = run_prediction(input_data)
 
     return {
-        "extracted_features": input_data,
-        "predicted_price_usd": predicted_price
-    }
-    
-@app.post("/predict-from-image")
-async def predict_from_image(file: UploadFile = File(...)):
-    data = await file.read()
-    image = Image.open(io.BytesIO(data))
-    
-    text_results = reader.readtext(np.array(image), detail=0)
-    user_prompt = " ".join(text_results)
-    
-    raw_data = parse_property_details(user_prompt)
-
-    if not raw_data:
-        raise HTTPException(status_code=400, detail="Could not parse property details.")
-
-    year_built = raw_data.get("year_built")
-    if year_built is None:
-        raise HTTPException(status_code=400, detail="Missing year_built.")
-
-    current_year = datetime.now().year
-
-    input_data = {
-        "neighborhood": raw_data.get("neighborhood"),
-        "building_class_category": raw_data.get("building_class_category"),
-        "gross_sqft": raw_data.get("gross_sqft"),
-        "dist_to_station": raw_data.get("distance_to_station"),
-        "build_age_yrs": current_year - int(year_built),
-        "within_half_mi": raw_data.get("within_half_mi")
-    }
-
-    predicted_price = run_prediction(input_data)
-
-    return {
-        "ocr_text": user_prompt,
         "extracted_features": input_data,
         "predicted_price_usd": predicted_price
     }

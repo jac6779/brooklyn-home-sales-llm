@@ -6,18 +6,12 @@ pydantic
 # Data Manipulation
 pandas
 numpy
-scikit-learn==1.5.1
+scikit-learn==1.4.2
 joblib
-
-# Image Processing
-easyocr
-Pillow
 
 # LLM Environ
 python-dotenv
 python-multipart
 
-# LLM Models
-openai>=1.0.0   # OpenAI
-google-genai>=0.8.0   # Google Gemini
-anthropic>=0.104.1   # Claude Anthropic
+# LLM Model
+openai>=1.0.0
