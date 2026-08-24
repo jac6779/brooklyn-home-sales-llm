@@ -2,8 +2,7 @@
 
 Productionized machine learning project for predicting Brooklyn residential home sale prices using Python, scikit-learn, FastAPI, Docker, OpenAI, and AWS.
 
-🔗 **Live API:** 
-https://zv8bfybrkn.us-east-1.awsapprunner.com/docs#/  
+🔗 **Live API:** https://zv8bfybrkn.us-east-1.awsapprunner.com/docs#/  
   
 🔗 **GitHub:** https://github.com/jac6779/brooklyn-home-sales-llm
 
@@ -15,7 +14,7 @@ This project predicts Brooklyn residential sale prices from property characteris
 
 The workflow starts with raw NYC home sales data, enriches each property with PLUTO geospatial data and nearest subway distance, applies structured preprocessing and feature engineering, compares multiple regression models, and serves the final model through a FastAPI inference API deployed on AWS App Runner.
 
-The project also includes an AI-powered inference layer that combines OCR, retrieval-augmented prompting, and LLM-based structured extraction. Users can submit natural-language property descriptions or uploaded documents, and the system extracts relevant information, retrieves project-specific contextual references, converts the input into validated structured model features, and then passes those features into the trained regression pipeline.
+The project also includes an OpenAI-powered inference layer that with retrieval-augmented prompting, and LLM-based structured extraction. Users can submit natural-language property descriptions or uploaded documents, and the system extracts relevant information, retrieves project-specific contextual references, converts the input into validated structured model features, and then passes those features into the trained regression pipeline.
 
 This repo reflects a full applied ML workflow:
 - raw data preprocessing
@@ -115,7 +114,7 @@ Preprocessing steps:
 - combined everything with a `ColumnTransformer`
 
 Final transformed matrix shape:
-- 5,596 rows × 63 features
+- 4,797 rows × 63 features
 
 Output artifacts:
 - `clean_data/03_feature_engineering.parquet`
@@ -138,10 +137,10 @@ Supporting metrics:
 - Adjusted R-squared
 
 Final selected model:
-- Elastic Net
+- OLS / Linear Regression
 
 Saved model artifact:
-- `models/home_price_model.joblib`
+- `models/home_price_model_ols.joblib`
 
 ### 5) Export Pipeline
 The final notebook packaged the project into a reusable inference artifact.
@@ -173,27 +172,6 @@ This made it possible for a user to describe a home in plain English instead of 
 ---
 
 
-### 7) OCR + Retrieval-Augmented LLM Workflow
-
-The inference workflow was extended beyond plain text input to support document-based and context-aware predictions.
-
-Key steps:
-- integrated OCR to extract text from uploaded property documents and images
-- converted unstructured text into usable content for downstream processing
-- created a retrieval layer using project-specific reference data
-- supplied contextual information such as:
-  - neighborhood values
-  - building class mappings
-  - accepted categorical values
-  - synonym handling
-- grounded prompts with retrieved context before LLM processing
-- converted extracted information into structured model inputs
-- validated extracted values against model expectations
-- passed validated features into the prediction pipeline
-
-This creates a grounded LLM workflow that reduces hallucinations and improves consistency between user input and model-required features.
-
-
 ## Key Notebook Insights
 
 These insights come directly from the project notebooks.
@@ -203,32 +181,25 @@ These insights come directly from the project notebooks.
 - Rows after removing invalid/missing square footage: 5,731
 - Rows after trimming gross square footage outliers: 5,702
 - Rows after filtering price-per-square-foot extremes: 5,615
-- Rows after neighborhood/category cleanup: 5,596
+- Rows after neighborhood/category cleanup: 4,797
 
 ### Property size distribution after cleanup
-- Median gross square feet: 2,209
-- Mean gross square feet: 2,700.90
-- 99.5th percentile cutoff used for trimming: 44,122 sq ft
+- Median gross square feet: 2,176
+- Mean gross square feet: 2,450.75
+- 99.0th percentile cutoff used for trimming: 13,005.10 sq ft
 
 ### Transit accessibility findings
-- Properties within half a mile of a subway station: 4,107
-- Properties beyond half a mile: 1,508
-- Correlation between distance to station and log sale price: -0.2998
+- Properties within half a mile of a subway station: 3,392
+- Properties beyond half a mile: 1,405
+- Correlation between distance to station and log sale price: -0.3417
 
 This suggests that homes farther from the subway tended to have lower sale prices on average in the working dataset.
 
 ### Most common building categories
-- **two_family_dwellings:** 2,383
-- **one_family_dwellings:** 1,656
-- **three_family_dwellings:** 903
-- **rentals_walkup_apartments:** 630
-
-### Interpretable OLS findings
-From the statsmodels OLS summary and coefficient table:
-- **`log_gross_sqft`** coefficient: 0.1157
-- **`within_half_mi`** coefficient: 0.0419
-- **`log_dist_to_station`** coefficient: 0.0091
-- **`build_age_yrs`** coefficient: -0.0078
+- **two_family_dwellings:** 2,091
+- **one_family_dwellings:** 1,517
+- **three_family_dwellings:** 740
+- **rentals_walkup_apartments:** 428
 
 The strongest interpretable signals in the selected summary were:
 - larger homes were associated with higher predicted prices
@@ -239,38 +210,38 @@ The strongest interpretable signals in the selected summary were:
 ## Model Results
 
 ### Baseline: OLS / Linear Regression
-- Train Adjusted R²: 0.599
-- Test Adjusted R²: 0.541
-- Test MAE: $474,825.12
-- Test RMSE: $908,444.85
-- Median Brooklyn sale price in dataset: $1,216,998.36
+- Train Adjusted R²: 0.753
+- Test Adjusted R²: 0.719
+- Test MAE: $345,856.74
+- Test RMSE: $537,067.26
+- Median Brooklyn sale price in dataset: $1,260,000.00
 
 ### Elastic Net
-- Best alpha: 0.000251
-- Best l1_ratio: 0.9
-- Train Adjusted R²: 0.599
-- Test Adjusted R²: 0.542
-- Test MAE: $474,111.60
+- Best alpha: 0.001745
+- Best l1_ratio: 0.1
+- Train Adjusted R²: 0.753
+- Test Adjusted R²: 0.719
+- Test MAE: $345,895.83
 
 ### Random Forest
-- Train Adjusted R²: 0.737
-- Test Adjusted R²: 0.541
-- Test MAE: $482,645.38
+- Train Adjusted R²: 0.830
+- Test Adjusted R²: 0.701
+- Test MAE: $361,345.14
 
 ### XGBoost
-- Train Adjusted R²: 0.701
-- Test Adjusted R²: 0.542
-- Test MAE: $487,822.11
+- Train Adjusted R²: 0.816
+- Test Adjusted R²: 0.720
+- Test MAE: $346,603.45
 
 ### Final ranking by MAE
 | Model | Train Adjusted R² | Test Adjusted R² | MAE |
 |---|---:|---:|---:|
-| Elastic Net | 0.599 | 0.542 | $474,111.60 |
-| OLS | 0.599 | 0.541 | $474,825.12 |
-| Random Forest | 0.737 | 0.541 | $482,645.38 |
-| XGBoost | 0.701 | 0.542 | $487,822.11 |
+| OLS | 0.753 | 0.719 | $345,856.74 |
+| Elastic Net | 0.753 | 0.719 | $345,895.83 |
+| XGBoost | 0.816 | 0.720 | $346,603.45 |
+| Random Forest | 0.830 | 0.701 | $361,345.14 |
 
-**Final model chosen:** Elastic Net  
+**Final model chosen:** OLS / Linear Regression 
 Elastic Net slightly outperformed the alternatives on test MAE while maintaining similar explanatory power, so it was selected as the production model.
 
 ---
